@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEML | Monthly Expenditure Manage List</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root{--bg:#0b0e14;--surface:#161b22;--surface-2:#1b2231;--accent:#00d2ff;--accent-2:#3a7bd5;--accent-glow:rgba(0,210,255,.22);--success:#00ff88;--warning:#ffb700;--danger:#ff6767;--text:#e6edf3;--dim:#8b949e;--border:rgba(255,255,255,.1);--safe-top:max(18px,env(safe-area-inset-top));--safe-right:max(16px,env(safe-area-inset-right));--safe-bottom:max(24px,env(safe-area-inset-bottom));--safe-left:max(16px,env(safe-area-inset-left))}
+        *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased} html{-webkit-text-size-adjust:100%} body{font-family:'Outfit','Noto Sans KR',sans-serif;background:radial-gradient(circle at 0 0,rgba(0,210,255,.06) 0,transparent 50%),radial-gradient(circle at 100% 100%,rgba(0,255,136,.05) 0,transparent 50%),var(--bg);color:var(--text);min-height:100vh;padding:calc(var(--safe-top) + 18px) var(--safe-right) calc(var(--safe-bottom) + 22px) var(--safe-left)}
+        button,input,textarea{font:inherit} .container{max-width:1080px;margin:0 auto} header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:28px}
+        .header-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+        h1{font-size:2.5rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px}
+        .subtitle,.helper,.meta,.item-desc,.item-sub,.empty-state,.month-note{color:var(--dim)} .back-btn,.month-tab,.btn,.icon-btn,.check{transition:all .22s ease}
+        .back-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 18px;border-radius:14px;text-decoration:none;background:var(--surface);border:1px solid var(--border);color:var(--dim);min-height:46px} .back-btn:hover{color:var(--accent);border-color:var(--accent)}
+        .layout{display:grid;grid-template-columns:1fr;gap:20px}.panel{background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:24px;overflow:hidden}.panel-title{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.panel-title h2{font-size:1.15rem}
+        .manage-btn{display:inline-flex;align-items:center;gap:8px}
+        .helper{font-size:.92rem;line-height:1.5;margin-bottom:14px}.chip{padding:7px 12px;border-radius:999px;background:rgba(0,210,255,.08);border:1px solid rgba(0,210,255,.18);font-size:.82rem;color:var(--accent)}
+        .form-grid{display:grid;grid-template-columns:1.2fr 1.3fr .9fr .7fr auto;gap:10px;margin-bottom:16px}.input,.textarea{width:100%;padding:14px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:var(--text);outline:none;min-height:48px}
+        .input:focus,.textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,210,255,.1)} .textarea{min-height:110px;resize:vertical}
+        .btn{padding:12px 18px;border-radius:14px;border:1px solid transparent;background:rgba(255,255,255,.08);color:var(--text);cursor:pointer;font-weight:600;min-height:48px}.btn.primary{background:var(--accent);color:#041620}.btn.primary:hover{box-shadow:0 0 20px var(--accent-glow)} .btn.ghost{border-color:var(--border);color:var(--dim)} .btn.warn{background:rgba(255,103,103,.12);border-color:rgba(255,103,103,.2);color:var(--danger)}
+        .section-divider{height:1px;background:var(--border);margin:18px 0}.list{display:grid;gap:12px}
+        .row,.item{display:flex;gap:12px;align-items:flex-start;padding:18px;border-radius:18px;border:1px solid var(--border);background:rgba(255,255,255,.03)} .row:hover,.item:hover{border-color:rgba(255,255,255,.18);background:rgba(255,255,255,.05)}
+        .row-main,.item-main{flex:1 1 260px;min-width:0;width:100%}.item-main{cursor:pointer}
+        .row-header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:start;margin-bottom:5px;font-size:1.03rem;font-weight:600}
+        .item-header{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:start;margin-bottom:5px;font-size:1.03rem;font-weight:600}
+        .row-header > span:first-child,.item-header > .item-name{display:block;min-width:0;line-height:1.35;writing-mode:horizontal-tb;text-orientation:mixed;white-space:normal}
+        .badge,.item-desc,.item-sub,.row-sub,.warning-note,.memo-preview,.helper,.subtitle,.month-note{writing-mode:horizontal-tb;text-orientation:mixed;white-space:normal;word-break:keep-all;overflow-wrap:break-word}
+        .item.paid{opacity:.78;background:rgba(0,255,136,.03);border-color:rgba(0,255,136,.12)} .item.paid .item-name{text-decoration:line-through;color:var(--dim)}
+        .badge{padding:4px 10px;border-radius:999px;font-size:.75rem;font-weight:700}.badge.recurring{color:var(--accent);background:rgba(0,210,255,.1);border:1px solid rgba(0,210,255,.18)} .badge.monthly{color:#ffd875;background:rgba(255,216,117,.1);border:1px solid rgba(255,216,117,.18)} .badge.paid{color:var(--success);background:rgba(0,255,136,.12);border:1px solid rgba(0,255,136,.18)} .badge.due{color:var(--danger);background:rgba(255,103,103,.12);border:1px solid rgba(255,103,103,.18)}
+        .item-sub,.row-sub{display:flex;gap:14px;flex-wrap:wrap;font-size:.84rem;margin-top:7px}.warning-note{margin-top:8px;color:#ffd56a;font-size:.8rem;font-weight:700;text-shadow:0 0 12px rgba(255,213,106,.26)} .memo-preview{margin-top:7px;color:var(--warning);font-size:.8rem;display:flex;gap:6px;align-items:center}
+        .actions{display:flex;gap:8px;flex:0 0 auto;align-self:flex-start;justify-content:flex-end}.icon-btn{width:42px;height:42px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--dim);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}.icon-btn:hover{transform:scale(1.05)} .icon-btn.memo.has-data,.icon-btn.memo:hover{border-color:rgba(255,183,0,.4);background:rgba(255,183,0,.08);color:var(--warning)} .icon-btn.edit{border-color:rgba(139,211,255,.26);background:rgba(139,211,255,.08);color:#8bd3ff} .icon-btn.delete{border-color:rgba(255,103,103,.22);background:rgba(255,103,103,.08);color:var(--danger)}
+        .check{width:42px;height:42px;border-radius:12px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;background:transparent;color:#04120b;flex-shrink:0}.item.paid .check{background:var(--success);border-color:var(--success)} .check svg{display:none}.item.paid .check svg{display:block}
+        .month-selector{display:flex;gap:8px;overflow:auto;padding:4px 0 12px;margin-bottom:8px;scrollbar-width:thin;scrollbar-color:var(--border) transparent;-webkit-overflow-scrolling:touch;scroll-padding-inline:8px}.month-selector::-webkit-scrollbar{height:4px}.month-selector::-webkit-scrollbar-thumb{background:var(--border);border-radius:999px}
+        .month-tab{padding:12px 16px;border-radius:14px;border:1px solid var(--border);background:var(--surface);white-space:nowrap;cursor:pointer;color:var(--dim);font-weight:600;min-height:46px}.month-tab.active{background:var(--accent);color:#03131b;border-color:var(--accent);box-shadow:0 0 20px var(--accent-glow)}
+        .month-title{font-size:1.7rem;margin:10px 0 18px}.month-title span{color:var(--accent);font-weight:800}.month-note{font-size:.88rem;margin-bottom:16px}
+        .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:22px}.stat{padding:18px;border-radius:18px;text-align:center;background:rgba(255,255,255,.02);border:1px solid var(--border)} .stat strong{display:block;font-size:1.5rem;margin-bottom:6px}
+        .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;padding:18px;opacity:0;pointer-events:none;transition:opacity .2s ease}.modal-overlay.open{opacity:1;pointer-events:auto}
+        .modal{width:min(100%,560px);max-height:min(82vh,760px);overflow:auto;background:var(--surface-2);border-radius:24px;padding:28px;border:1px solid var(--border);transform:translateY(14px) scale(.98);transition:transform .2s ease}.modal-overlay.open .modal{transform:none}.modal-header{display:flex;align-items:center;gap:10px;margin-bottom:16px}.modal-header h3{flex:1;font-size:1.08rem}
+        .modal-title-box{margin-bottom:12px;padding:11px 13px;border-radius:12px;background:rgba(255,255,255,.04);color:var(--dim)} .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;flex-wrap:wrap}
+        .empty-state{padding:44px 0;text-align:center}
+        @media (max-width:980px){.layout{grid-template-columns:1fr}}
+        @media (max-width:760px){
+            body{padding:calc(var(--safe-top) + 10px) var(--safe-right) calc(var(--safe-bottom) + 18px) var(--safe-left)}
+            .container{max-width:100%}
+            header{flex-direction:column;align-items:flex-start;gap:12px;margin-bottom:20px}
+            .header-actions{width:100%}
+            h1{font-size:2.05rem;line-height:1}
+            .subtitle{font-size:.94rem;line-height:1.55}
+            .layout{gap:14px}
+            .panel{padding:18px;border-radius:20px}
+            .panel-title{align-items:flex-start;flex-direction:column;margin-bottom:10px}
+            .chip{font-size:.78rem}
+            .form-grid{grid-template-columns:1fr;gap:9px}
+            .row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;padding:15px;border-radius:16px}
+            .item{display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:start;padding:15px;border-radius:16px}
+            .row-main,.item-main{flex-basis:auto;min-width:0;width:auto}
+            .row-header{grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start}
+            .item-header{grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:start}
+            .month-selector{position:sticky;top:0;z-index:5;margin-inline:-2px;padding-top:2px;background:linear-gradient(180deg,var(--surface) 78%,rgba(22,27,34,0))}
+            .month-title{font-size:1.42rem;margin:8px 0 12px}
+            .month-note{font-size:.84rem;line-height:1.45}
+            .summary{grid-template-columns:1fr;gap:10px}
+            .stat{padding:15px}
+            .actions{width:auto;justify-content:flex-end}
+            .modal-overlay{padding:10px}
+            .modal{width:100%;max-height:calc(100vh - var(--safe-top) - var(--safe-bottom) - 20px);padding:18px 16px 16px;border-radius:20px}
+            .modal-header{align-items:flex-start}
+            .modal-actions{justify-content:stretch}
+            .modal-actions .btn{flex:1}
+        }
+        @media (max-width:460px){
+            body{padding:calc(var(--safe-top) + 8px) var(--safe-right) calc(var(--safe-bottom) + 14px) var(--safe-left)}
+            h1{font-size:1.84rem}
+            .header-actions{flex-direction:column}
+            .back-btn,.manage-btn{width:100%;justify-content:center}
+            .panel{padding:16px}
+            .month-tab{padding:11px 14px;font-size:.92rem}
+            .row{grid-template-columns:minmax(0,1fr) auto;gap:10px}
+            .item{grid-template-columns:40px minmax(0,1fr) auto;gap:10px}
+            .row-header{grid-template-columns:minmax(0,1fr) auto}
+            .item-header{grid-template-columns:minmax(0,1fr);gap:6px}
+            .row-header > span:first-child,.item-header > .item-name{font-size:1rem}
+            .item-sub,.row-sub{flex-direction:column;gap:4px}
+            .actions{gap:6px}
+            .icon-btn,.check{width:40px;height:40px}
+        }
+        @media (min-width:390px) and (max-width:460px){
+            .layout{gap:16px}
+            .panel{padding:18px}
+            .row,.item{padding:16px}
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>MEML</h1>
+                <p class="subtitle">회사 월간 고정지출을 월별로 체크하고, 지난달 미처리 항목과 이번 달 추가 항목까지 함께 관리합니다.</p>
+            </div>
+            <div class="header-actions">
+                <button id="openManageBtn" class="btn ghost manage-btn" type="button">프리셋 편집</button>
+                <a href="../index.html" class="back-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                    Toolbox
+                </a>
+            </div>
+        </header>
+
+        <div class="layout">
+            <section class="panel">
+                <div id="monthSelector" class="month-selector" aria-label="월 선택"></div>
+                <h2 id="monthTitle" class="month-title"><span>1월</span> 고정지출 체크리스트</h2>
+                <p class="month-note">상시 항목은 매월 자동으로 나오고, 이번 달 추가 항목은 선택한 월에만 표시됩니다.</p>
+                <div id="items" class="list"></div>
+                <div class="summary">
+                    <div class="stat"><strong id="countTotal">0</strong><span class="meta">전체 항목</span></div>
+                    <div class="stat"><strong id="countPaid" style="color:var(--success)">0</strong><span class="meta">처리 완료</span></div>
+                    <div class="stat"><strong id="countPending" style="color:var(--danger)">0</strong><span class="meta">미처리</span></div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <div id="manageModal" class="modal-overlay" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true">
+            <div class="modal-header">
+                <h3>고정지출 프리셋 편집</h3>
+                <button class="btn ghost" type="button" data-close="manage">닫기</button>
+            </div>
+            <div class="panel-title">
+                <h2>고정지출항목 세팅</h2>
+                <span class="chip" id="recurringCount">0개</span>
+            </div>
+            <p class="helper">여기서는 매월 공통으로 나타나는 고정지출 프리셋을 편집합니다. 이 목록은 각 월 체크리스트의 기본값으로 사용됩니다.</p>
+            <form id="recurringForm" class="form-grid">
+                <input id="recurringName" class="input" type="text" placeholder="항목명" required>
+                <input id="recurringDesc" class="input" type="text" placeholder="설명 또는 메모">
+                <input id="recurringAmount" class="input" type="number" min="0" step="1000" placeholder="금액">
+                <input id="recurringDueDay" class="input" type="number" min="1" max="31" placeholder="납부일">
+                <button class="btn primary" type="submit">프리셋 추가</button>
+            </form>
+            <div id="recurringList" class="list"></div>
+
+            <div class="section-divider"></div>
+
+            <div class="panel-title">
+                <h2>이번 달 전용 항목</h2>
+                <span class="chip" id="monthlyCount">0개</span>
+            </div>
+            <p class="helper">프리셋과 별도로, 현재 선택한 월에만 필요한 임시 항목을 추가합니다. 이 항목은 다른 달에는 나타나지 않습니다.</p>
+            <form id="monthlyForm" class="form-grid">
+                <input id="monthlyName" class="input" type="text" placeholder="항목명" required>
+                <input id="monthlyDesc" class="input" type="text" placeholder="설명 또는 메모">
+                <input id="monthlyAmount" class="input" type="number" min="0" step="1000" placeholder="금액">
+                <input id="monthlyDueDay" class="input" type="number" min="1" max="31" placeholder="납부일">
+                <button class="btn primary" type="submit">월 전용 항목 추가</button>
+            </form>
+            <div id="monthlyList" class="list"></div>
+        </div>
+    </div>
+
+    <div id="memoModal" class="modal-overlay" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true">
+            <div class="modal-header">
+                <h3>메모</h3>
+                <button class="btn ghost" type="button" data-close="memo">닫기</button>
+            </div>
+            <div id="memoTitle" class="modal-title-box"></div>
+            <textarea id="memoText" class="textarea" placeholder="이 항목에 대한 메모를 입력하세요."></textarea>
+            <div class="modal-actions">
+                <button id="deleteMemoBtn" class="btn warn" type="button">삭제</button>
+                <button class="btn ghost" type="button" data-close="memo">취소</button>
+                <button id="saveMemoBtn" class="btn primary" type="button">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editModal" class="modal-overlay" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true">
+            <div class="modal-header">
+                <h3>항목 수정</h3>
+                <button class="btn ghost" type="button" data-close="edit">닫기</button>
+            </div>
+            <input id="editName" class="input" type="text" placeholder="항목명">
+            <input id="editAmount" class="input" type="number" min="0" step="1000" placeholder="금액">
+            <input id="editDueDay" class="input" type="number" min="1" max="31" placeholder="납부일">
+            <textarea id="editDesc" class="textarea" placeholder="설명"></textarea>
+            <div class="modal-actions">
+                <button class="btn ghost" type="button" data-close="edit">취소</button>
+                <button id="saveEditBtn" class="btn primary" type="button">저장</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        const KEYS={presets:'meml_preset_items',monthly:'meml_month_specific_items',state:'meml_monthly_state',monthMemos:'meml_month_item_memos'};
+        const seedRecurring=[
+            {id:'fixed_1',name:'월급여 정리 (1차/2차)',desc:'매월 입금 일정 확인 및 정리',amount:'',dueDay:''},
+            {id:'fixed_2',name:'연금 통합징수보험',desc:'매월 보험료 통합 징수 확인',amount:'',dueDay:''},
+            {id:'fixed_3',name:'부가세 납부',desc:'해당 월 부가세 납부 여부 확인',amount:'',dueDay:''},
+            {id:'fixed_4',name:'아이파크 하이드 관리비',desc:'매월 관리비 납부',amount:'',dueDay:''},
+            {id:'fixed_5',name:'아이파크 하이드 수도료',desc:'매월 수도료 납부',amount:'',dueDay:''},
+            {id:'fixed_6',name:'기술료 수도료',desc:'매월 수도료 납부',amount:'',dueDay:''},
+            {id:'fixed_7',name:'기술료 공과금 관리비',desc:'매월 관리비 고지 확인 및 납부',amount:'',dueDay:''},
+            {id:'fixed_8',name:'기술료 가스비',desc:'매월 가스비 고지 확인 및 납부',amount:'',dueDay:''},
+            {id:'fixed_9',name:'상호 예금통장',desc:'정기 결제 및 통장 일정 확인',amount:'',dueDay:''}
+        ];
+        const seedState={3:{fixed_1:false,fixed_2:true,fixed_3:true,fixed_4:false,fixed_5:false,fixed_6:false,fixed_7:false,fixed_8:false,fixed_9:true}};
+        const state={month:new Date().getMonth()+1,recurring:[],monthlyItems:{},checks:{},monthMemos:{},activeMemoId:null,activeEdit:null};
+        const refs={
+            recurringForm:document.getElementById('recurringForm'),
+            recurringName:document.getElementById('recurringName'),
+            recurringDesc:document.getElementById('recurringDesc'),
+            recurringAmount:document.getElementById('recurringAmount'),
+            recurringDueDay:document.getElementById('recurringDueDay'),
+            monthlyForm:document.getElementById('monthlyForm'),
+            monthlyName:document.getElementById('monthlyName'),
+            monthlyDesc:document.getElementById('monthlyDesc'),
+            monthlyAmount:document.getElementById('monthlyAmount'),
+            monthlyDueDay:document.getElementById('monthlyDueDay'),
+            recurringList:document.getElementById('recurringList'),
+            monthlyList:document.getElementById('monthlyList'),
+            recurringCount:document.getElementById('recurringCount'),
+            monthlyCount:document.getElementById('monthlyCount'),
+            monthSelector:document.getElementById('monthSelector'),
+            monthTitle:document.getElementById('monthTitle'),
+            items:document.getElementById('items'),
+            countTotal:document.getElementById('countTotal'),
+            countPaid:document.getElementById('countPaid'),
+            countPending:document.getElementById('countPending'),
+            openManageBtn:document.getElementById('openManageBtn'),
+            manageModal:document.getElementById('manageModal'),
+            memoModal:document.getElementById('memoModal'),
+            memoTitle:document.getElementById('memoTitle'),
+            memoText:document.getElementById('memoText'),
+            deleteMemoBtn:document.getElementById('deleteMemoBtn'),
+            saveMemoBtn:document.getElementById('saveMemoBtn'),
+            editModal:document.getElementById('editModal'),
+            editName:document.getElementById('editName'),
+            editAmount:document.getElementById('editAmount'),
+            editDueDay:document.getElementById('editDueDay'),
+            editDesc:document.getElementById('editDesc'),
+            saveEditBtn:document.getElementById('saveEditBtn')
+        };
+
+        const read=(key,fallback)=>{try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback}catch{return fallback}};
+        const write=(key,value)=>localStorage.setItem(key,JSON.stringify(value));
+        const esc=value=>String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'","&#39;");
+        const makeId=prefix=>`${prefix}_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+        const icon=type=>({check:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>',memo:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',edit:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>',delete:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>'})[type];
+        const checkState=month=>state.checks[month]||(state.checks[month]={});
+        const monthItems=month=>state.monthlyItems[month]||(state.monthlyItems[month]=[]);
+        const monthMemoKey=(month,id)=>`${month}:${id}`;
+        const formatAmount=value=>value!==''&&value!==null&&value!==undefined?`${Number(value).toLocaleString('ko-KR')}원`:'금액 미입력';
+        const formatDueDay=value=>value?`매월 ${value}일`:'납부일 미지정';
+        const normalizeItem=(item,fallbackId,type)=>({id:item.id||fallbackId,name:item.name||'항목',desc:item.desc||'설명 없음',amount:item.amount??'',dueDay:item.dueDay??'',type:type||item.type||'recurring'});
+
+        function migrateRecurring(stored){
+            if(Array.isArray(stored)&&stored.length)return stored.map((item,index)=>normalizeItem(item,`fixed_${index+1}`,'recurring'));
+            const legacy=read('meml_template_items',null);
+            if(Array.isArray(legacy)&&legacy.length)return legacy.map((item,index)=>normalizeItem(item,`fixed_${index+1}`,'recurring'));
+            return seedRecurring.map(item=>({...item,type:'recurring'}));
+        }
+
+        function migrateMonthly(stored){
+            if(stored&&typeof stored==='object'){
+                Object.keys(stored).forEach(month=>{stored[month]=(stored[month]||[]).map((item,index)=>normalizeItem(item,`monthly_${month}_${index+1}`,'monthly'))});
+                return stored;
+            }
+            return {};
+        }
+
+        function migrateChecks(stored){
+            if(!stored||typeof stored!=='object'){
+                const legacy=read('meml_data',null);
+                stored=legacy&&typeof legacy==='object'?legacy:structuredClone(seedState);
+            }
+            const sample=Object.values(stored)[0];
+            if(Array.isArray(sample)){
+                const migrated={};
+                Object.entries(stored).forEach(([month,items])=>{
+                    migrated[month]={};
+                    items.forEach((item,index)=>{
+                        const fallbackId=state.recurring[index]?.id;
+                        const itemId=item?.id&&item.id.startsWith('m')?`fixed_${index+1}`:(item?.id||fallbackId);
+                        if(itemId)migrated[month][itemId]=Boolean(item?.paid);
+                    });
+                });
+                return migrated;
+            }
+            return stored;
+        }
+
+        function persist(){write(KEYS.presets,state.recurring);write(KEYS.monthly,state.monthlyItems);write(KEYS.state,state.checks);write(KEYS.monthMemos,state.monthMemos)}
+        function openManage(){refs.manageModal.classList.add('open');refs.manageModal.setAttribute('aria-hidden','false')}
+        function closeManage(){refs.manageModal.classList.remove('open');refs.manageModal.setAttribute('aria-hidden','true')}
+        function allItemsForMonth(month){return [...state.recurring.map(item=>({...item,type:'recurring'})),...monthItems(month).map(item=>({...item,type:'monthly'}))]}
+        function viewItemsForMonth(month){
+            const current=checkState(month);
+            const prev=month>1?checkState(month-1):null;
+            return allItemsForMonth(month).map(item=>({...item,paid:Boolean(current[item.id]),carryover:prev?prev[item.id]===false:false,memo:state.monthMemos[monthMemoKey(month,item.id)]||''}));
+        }
+        function renderMonthTabs(){refs.monthSelector.innerHTML=Array.from({length:12},(_,i)=>{const month=i+1;return `<button type="button" class="month-tab${month===state.month?' active':''}" data-month="${month}">${month}월</button>`}).join('')}
+        function rowMeta(item){return `<div class="row-sub"><span>${formatAmount(item.amount)}</span><span>${formatDueDay(item.dueDay)}</span></div>`}
+        function renderRecurringList(){
+            refs.recurringCount.textContent=`${state.recurring.length}개`;
+            if(!state.recurring.length){refs.recurringList.innerHTML='<div class="empty-state">등록된 월간 고정지출 항목이 없습니다.</div>';return}
+            refs.recurringList.innerHTML=state.recurring.map(item=>`<div class="row"><div class="row-main"><div class="row-header"><span>${esc(item.name)}</span><span class="badge recurring">상시</span></div><div class="item-desc">${esc(item.desc||'설명 없음')}</div>${rowMeta(item)}</div><div class="actions"><button type="button" class="icon-btn edit" data-action="edit" data-scope="recurring" data-id="${item.id}" title="수정">${icon('edit')}</button><button type="button" class="icon-btn delete" data-action="delete" data-scope="recurring" data-id="${item.id}" title="삭제">${icon('delete')}</button></div></div>`).join('');
+        }
+        function renderMonthlyList(){
+            const items=monthItems(state.month);
+            refs.monthlyCount.textContent=`${items.length}개`;
+            if(!items.length){refs.monthlyList.innerHTML='<div class="empty-state">이번 달에만 사용하는 항목이 없습니다.</div>';return}
+            refs.monthlyList.innerHTML=items.map(item=>`<div class="row"><div class="row-main"><div class="row-header"><span>${esc(item.name)}</span><span class="badge monthly">이번 달만</span></div><div class="item-desc">${esc(item.desc||'설명 없음')}</div>${rowMeta(item)}</div><div class="actions"><button type="button" class="icon-btn edit" data-action="edit" data-scope="monthly" data-id="${item.id}" title="수정">${icon('edit')}</button><button type="button" class="icon-btn delete" data-action="delete" data-scope="monthly" data-id="${item.id}" title="삭제">${icon('delete')}</button></div></div>`).join('');
+        }
+        function renderItems(){
+            const items=viewItemsForMonth(state.month);
+            refs.monthTitle.innerHTML=`<span>${state.month}월</span> 고정지출 체크리스트`;
+            if(!items.length){refs.items.innerHTML='<div class="empty-state">해당 월의 항목이 없습니다.</div>';refs.countTotal.textContent='0';refs.countPaid.textContent='0';refs.countPending.textContent='0';return}
+            refs.items.innerHTML=items.map(item=>{const memo=item.memo.trim();return `<div class="item${item.paid?' paid':''}"><button type="button" class="check" data-action="toggle" data-id="${item.id}" aria-label="${esc(item.name)} 상태 변경">${icon('check')}</button><div class="item-main" data-action="toggle" data-id="${item.id}"><div class="item-header"><span class="item-name">${esc(item.name)}</span><span class="badge ${item.type==='recurring'?'recurring':'monthly'}">${item.type==='recurring'?'상시':'이번 달만'}</span><span class="badge ${item.paid?'paid':'due'}">${item.paid?'처리완료':'미처리'}</span></div><div class="item-desc">${esc(item.desc||'설명 없음')}</div><div class="item-sub"><span>${formatAmount(item.amount)}</span><span>${formatDueDay(item.dueDay)}</span></div>${item.carryover&&!item.paid?'<div class="warning-note">지난달 처리되지않음</div>':''}${memo?`<div class="memo-preview">${icon('memo')}<span>${esc(memo.length>42?`${memo.slice(0,42)}...`:memo)}</span></div>`:''}</div><div class="actions"><button type="button" class="icon-btn memo${memo?' has-data':''}" data-action="memo" data-id="${item.id}" title="${memo?'메모 수정':'메모 추가'}">${icon('memo')}</button><button type="button" class="icon-btn edit" data-action="edit" data-scope="${item.type}" data-id="${item.id}" title="수정">${icon('edit')}</button></div></div>`}).join('');
+            const paid=items.filter(item=>item.paid).length;
+            refs.countTotal.textContent=String(items.length);
+            refs.countPaid.textContent=String(paid);
+            refs.countPending.textContent=String(items.length-paid);
+        }
+        function render(){renderMonthTabs();renderRecurringList();renderMonthlyList();renderItems()}
+        function addRecurringItem(){
+            const name=refs.recurringName.value.trim();
+            if(!name){refs.recurringName.focus();return}
+            state.recurring.push({id:makeId('recurring'),name,desc:refs.recurringDesc.value.trim()||'설명 없음',amount:refs.recurringAmount.value.trim(),dueDay:refs.recurringDueDay.value.trim(),type:'recurring'});
+            persist();refs.recurringForm.reset();refs.recurringName.focus();render();
+        }
+        function addMonthlyItem(){
+            const name=refs.monthlyName.value.trim();
+            if(!name){refs.monthlyName.focus();return}
+            monthItems(state.month).push({id:makeId(`monthly_${state.month}`),name,desc:refs.monthlyDesc.value.trim()||'설명 없음',amount:refs.monthlyAmount.value.trim(),dueDay:refs.monthlyDueDay.value.trim(),type:'monthly'});
+            persist();refs.monthlyForm.reset();refs.monthlyName.focus();render();
+        }
+        function toggleItem(id){const current=checkState(state.month);current[id]=!current[id];write(KEYS.state,state.checks);renderItems()}
+        function findItem(scope,id){return scope==='monthly'?monthItems(state.month).find(item=>item.id===id):state.recurring.find(item=>item.id===id)}
+        function openMemo(id){
+            const item=allItemsForMonth(state.month).find(entry=>entry.id===id);
+            if(!item)return;
+            state.activeMemoId=id;refs.memoTitle.textContent=item.name;refs.memoText.value=state.monthMemos[monthMemoKey(state.month,id)]||'';
+            refs.deleteMemoBtn.style.display=refs.memoText.value.trim()?'inline-flex':'none';
+            refs.memoModal.classList.add('open');refs.memoModal.setAttribute('aria-hidden','false');setTimeout(()=>refs.memoText.focus(),0);
+        }
+        function closeMemo(){state.activeMemoId=null;refs.memoText.value='';refs.memoModal.classList.remove('open');refs.memoModal.setAttribute('aria-hidden','true')}
+        function saveMemo(){if(!state.activeMemoId)return;const key=monthMemoKey(state.month,state.activeMemoId);const text=refs.memoText.value.trim();if(text){state.monthMemos[key]=text}else{delete state.monthMemos[key]}write(KEYS.monthMemos,state.monthMemos);closeMemo();renderItems()}
+        function deleteMemo(){if(!state.activeMemoId)return;delete state.monthMemos[monthMemoKey(state.month,state.activeMemoId)];write(KEYS.monthMemos,state.monthMemos);closeMemo();renderItems()}
+        function openEdit(scope,id){
+            const item=findItem(scope,id);
+            if(!item)return;
+            state.activeEdit={scope,id};refs.editName.value=item.name;refs.editAmount.value=item.amount;refs.editDueDay.value=item.dueDay;refs.editDesc.value=item.desc;
+            refs.editModal.classList.add('open');refs.editModal.setAttribute('aria-hidden','false');setTimeout(()=>refs.editName.focus(),0);
+        }
+        function closeEdit(){state.activeEdit=null;refs.editName.value='';refs.editAmount.value='';refs.editDueDay.value='';refs.editDesc.value='';refs.editModal.classList.remove('open');refs.editModal.setAttribute('aria-hidden','true')}
+        function saveEdit(){
+            if(!state.activeEdit)return;
+            const item=findItem(state.activeEdit.scope,state.activeEdit.id);
+            if(!item)return;
+            const nextName=refs.editName.value.trim();
+            if(!nextName){refs.editName.focus();return}
+            item.name=nextName;item.amount=refs.editAmount.value.trim();item.dueDay=refs.editDueDay.value.trim();item.desc=refs.editDesc.value.trim()||'설명 없음';
+            persist();closeEdit();render();
+        }
+        function deleteItem(scope,id){
+            if(scope==='monthly'){state.monthlyItems[state.month]=monthItems(state.month).filter(item=>item.id!==id)}
+            else{state.recurring=state.recurring.filter(item=>item.id!==id)}
+            Object.values(state.checks).forEach(month=>{delete month[id]});
+            Object.keys(state.monthMemos).forEach(key=>{if(key.endsWith(`:${id}`))delete state.monthMemos[key]});
+            persist();render();
+        }
+        function handleAction(event){
+            const target=event.target.closest('[data-action]');
+            if(!target)return;
+            const {action,id,scope}=target.dataset;
+            if(action==='toggle')toggleItem(id);
+            if(action==='memo')openMemo(id);
+            if(action==='edit')openEdit(scope,id);
+            if(action==='delete')deleteItem(scope,id);
+        }
+
+        refs.recurringForm.addEventListener('submit',event=>{event.preventDefault();addRecurringItem()});
+        refs.monthlyForm.addEventListener('submit',event=>{event.preventDefault();addMonthlyItem()});
+        refs.openManageBtn.addEventListener('click',openManage);
+        refs.monthSelector.addEventListener('click',event=>{const tab=event.target.closest('[data-month]');if(!tab)return;state.month=Number(tab.dataset.month);render()});
+        refs.items.addEventListener('click',handleAction);
+        refs.recurringList.addEventListener('click',handleAction);
+        refs.monthlyList.addEventListener('click',handleAction);
+        document.body.addEventListener('click',event=>{if(event.target.dataset.close==='memo')closeMemo();if(event.target.dataset.close==='edit')closeEdit();if(event.target.dataset.close==='manage')closeManage()});
+        refs.manageModal.addEventListener('click',event=>{if(event.target===refs.manageModal)closeManage()});
+        refs.memoModal.addEventListener('click',event=>{if(event.target===refs.memoModal)closeMemo()});
+        refs.editModal.addEventListener('click',event=>{if(event.target===refs.editModal)closeEdit()});
+        document.addEventListener('keydown',event=>{if(event.key==='Escape'){if(refs.manageModal.classList.contains('open'))closeManage();if(refs.memoModal.classList.contains('open'))closeMemo();if(refs.editModal.classList.contains('open'))closeEdit()}if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){if(refs.memoModal.classList.contains('open'))saveMemo();if(refs.editModal.classList.contains('open'))saveEdit()}});
+        refs.saveMemoBtn.addEventListener('click',saveMemo);
+        refs.deleteMemoBtn.addEventListener('click',deleteMemo);
+        refs.saveEditBtn.addEventListener('click',saveEdit);
+
+        state.recurring=migrateRecurring(read(KEYS.presets,read('meml_recurring_items',null)));
+        state.monthlyItems=migrateMonthly(read(KEYS.monthly,null));
+        state.checks=migrateChecks(read(KEYS.state,null));
+        state.monthMemos=read(KEYS.monthMemos,{})||{};
+        persist();
+        render();
+    </script>
+</body>
+</html>
