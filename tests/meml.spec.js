@@ -9,6 +9,16 @@ const expectedPeriod = `${expectedYear}-${String(expectedMonth).padStart(2, '0')
 const previousDate = new Date(expectedYear, expectedMonth - 2, 1);
 const previousPeriod = `${previousDate.getFullYear()}-${String(previousDate.getMonth() + 1).padStart(2, '0')}`;
 
+async function holdDrag(page, sourceHandle, targetItem) {
+  const sourceBox = await sourceHandle.boundingBox();
+  const targetBox = await targetItem.boundingBox();
+  await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(260);
+  await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height - 8, { steps: 8 });
+  await page.mouse.up();
+}
+
 test('adds, persists, and escapes month-specific item data', async ({ page }) => {
   await page.goto(fileUrl);
   await expect(page.locator('#items .item')).toHaveCount(9);
@@ -78,6 +88,27 @@ test('keeps checked states stable across repeated reloads and month switches', a
   const storedMonthly = JSON.parse(await page.evaluate(() => localStorage.getItem('meml_month_specific_items')));
   expect(Object.keys(storedState).filter(key => key === expectedPeriod)).toHaveLength(1);
   expect(storedMonthly[expectedPeriod]).toHaveLength(1);
+});
+
+test('reorders current checklist items by dragging and persists order', async ({ page }) => {
+  await page.goto(fileUrl);
+  await expect(page.locator('#items .item')).toHaveCount(9);
+
+  const first = page.locator('#items .item').nth(0);
+  const third = page.locator('#items .item').nth(2);
+  const firstName = await first.locator('.item-name').textContent();
+  const thirdName = await third.locator('.item-name').textContent();
+
+  await holdDrag(page, first.locator('.drag-handle'), third);
+  await expect(page.locator('#items .item').nth(2).locator('.item-name')).toHaveText(firstName);
+  await expect(page.locator('#items .item').nth(1).locator('.item-name')).toHaveText(thirdName);
+
+  const order = JSON.parse(await page.evaluate(() => localStorage.getItem('meml_month_item_order')));
+  expect(order[expectedPeriod]).toHaveLength(9);
+
+  await page.reload();
+  await expect(page.locator('#items .item').nth(2).locator('.item-name')).toHaveText(firstName);
+  await expect(page.locator('#items .item').nth(1).locator('.item-name')).toHaveText(thirdName);
 });
 
 test('migrates legacy month-number keys to period keys and preserves carryover warnings', async ({ page }) => {
@@ -163,6 +194,11 @@ test('keeps rendering when localStorage writes fail', async ({ page }) => {
   await page.locator('#monthlyName').fill('Unsaved item');
   await page.locator('#monthlyForm button[type="submit"]').click();
   await expect(page.locator('#monthlyList')).not.toContainText('Unsaved item');
+
+  await page.locator('[data-close="manage"]').click();
+  const firstName = await page.locator('#items .item').nth(0).locator('.item-name').textContent();
+  await holdDrag(page, page.locator('#items .item').nth(0).locator('.drag-handle'), page.locator('#items .item').nth(2));
+  await expect(page.locator('#items .item').nth(0).locator('.item-name')).toHaveText(firstName);
 });
 
 test('confirms destructive delete actions', async ({ page }) => {
