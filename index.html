@@ -40,7 +40,7 @@
         .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;padding:18px;opacity:0;pointer-events:none;transition:opacity .2s ease}.modal-overlay.open{opacity:1;pointer-events:auto}
         .modal{width:min(100%,560px);max-height:min(82vh,760px);overflow:auto;background:var(--surface-2);border-radius:24px;padding:28px;border:1px solid var(--border);transform:translateY(14px) scale(.98);transition:transform .2s ease}.modal-overlay.open .modal{transform:none}.modal-header{display:flex;align-items:center;gap:10px;margin-bottom:16px}.modal-header h3{flex:1;font-size:1.08rem}
         .modal-title-box{margin-bottom:12px;padding:11px 13px;border-radius:12px;background:rgba(255,255,255,.04);color:var(--dim)} .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;flex-wrap:wrap}
-        .empty-state{padding:44px 0;text-align:center}
+        .empty-state{padding:44px 0;text-align:center}.storage-alert{display:none;margin:0 0 14px;padding:12px 14px;border-radius:14px;border:1px solid rgba(255,183,0,.32);background:rgba(255,183,0,.08);color:#ffd875;font-size:.86rem;line-height:1.45}.storage-alert.show{display:block}
         @media (max-width:980px){.layout{grid-template-columns:1fr}}
         @media (max-width:760px){
             body{padding:calc(var(--safe-top) + 10px) var(--safe-right) calc(var(--safe-bottom) + 18px) var(--safe-left)}
@@ -115,6 +115,7 @@
                 <div id="monthSelector" class="month-selector" aria-label="월 선택"></div>
                 <h2 id="monthTitle" class="month-title"><span>1월</span> 고정지출 체크리스트</h2>
                 <p class="month-note">상시 항목은 매월 자동으로 나오고, 이번 달 추가 항목은 선택한 월에만 표시됩니다. 메모는 프리셋과 공유되지 않고 해당 월에서만 저장됩니다.</p>
+                <div id="storageAlert" class="storage-alert" role="status" aria-live="polite"></div>
                 <div id="items" class="list"></div>
                 <div class="summary">
                     <div class="stat"><strong id="countTotal">0</strong><span class="meta">전체 항목</span></div>
@@ -209,7 +210,9 @@
             {id:'fixed_9',name:'상호 예금통장',desc:'정기 결제 및 통장 일정 확인',amount:'',dueDay:''}
         ];
         const seedState={3:{fixed_1:false,fixed_2:true,fixed_3:true,fixed_4:false,fixed_5:false,fixed_6:false,fixed_7:false,fixed_8:false,fixed_9:true}};
-        const state={month:new Date().getMonth()+1,recurring:[],monthlyItems:{},checks:{},monthMemos:{},monthOverrides:{},activeMemoId:null,activeEdit:null};
+        const now=new Date();
+        const currentYear=now.getFullYear();
+        const state={year:currentYear,month:now.getMonth()+1,recurring:[],monthlyItems:{},checks:{},monthMemos:{},monthOverrides:{},activeMemoId:null,activeEdit:null,storageError:'',storageLocked:false};
         const refs={
             recurringForm:document.getElementById('recurringForm'),
             recurringName:document.getElementById('recurringName'),
@@ -243,21 +246,60 @@
             editAmount:document.getElementById('editAmount'),
             editDueDay:document.getElementById('editDueDay'),
             editDesc:document.getElementById('editDesc'),
-            saveEditBtn:document.getElementById('saveEditBtn')
+            saveEditBtn:document.getElementById('saveEditBtn'),
+            storageAlert:document.getElementById('storageAlert')
         };
 
-        const read=(key,fallback)=>{try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback}catch{return fallback}};
-        const write=(key,value)=>localStorage.setItem(key,JSON.stringify(value));
+        const read=(key,fallback)=>{try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback}catch{state.storageLocked=true;return fallback}};
+        const setStorageStatus=message=>{state.storageError=message||'';refs.storageAlert.textContent=state.storageError;refs.storageAlert.classList.toggle('show',Boolean(state.storageError))};
+        const write=(key,value)=>{
+            if(state.storageLocked){setStorageStatus('저장된 데이터 일부를 읽을 수 없어 변경 내용을 저장하지 않았습니다. 브라우저 저장 데이터를 확인한 뒤 다시 시도하세요.');return false}
+            try{localStorage.setItem(key,JSON.stringify(value));return true}catch{setStorageStatus('저장 공간을 사용할 수 없어 변경 내용이 이 브라우저에 저장되지 않을 수 있습니다.');return false}
+        };
+        const saveValue=(key,value)=>{const ok=write(key,value);if(ok)setStorageStatus('');return ok};
         const esc=value=>String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'","&#39;");
         const makeId=prefix=>`${prefix}_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
         const icon=type=>({check:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>',memo:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',edit:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>',delete:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>'})[type];
-        const checkState=month=>state.checks[month]||(state.checks[month]={});
-        const monthItems=month=>state.monthlyItems[month]||(state.monthlyItems[month]=[]);
-        const monthOverrides=month=>state.monthOverrides[month]||(state.monthOverrides[month]={});
-        const monthMemoKey=(month,id)=>`${month}:${id}`;
+        const padMonth=month=>String(month).padStart(2,'0');
+        const periodKey=(month=state.month,year=state.year)=>`${year}-${padMonth(month)}`;
+        const periodFromLegacyKey=key=>/^\d{1,2}$/.test(String(key))?periodKey(Number(key),currentYear):String(key);
+        const previousPeriodKey=(month=state.month,year=state.year)=>month>1?periodKey(month-1,year):periodKey(12,year-1);
+        const checkState=month=>{const key=periodKey(month);return state.checks[key]||(state.checks[key]={})};
+        const monthItems=month=>{const key=periodKey(month);return state.monthlyItems[key]||(state.monthlyItems[key]=[])};
+        const monthOverrides=month=>{const key=periodKey(month);return state.monthOverrides[key]||(state.monthOverrides[key]={})};
+        const monthMemoKey=(month,id)=>`${periodKey(month)}:${id}`;
         const formatAmount=value=>value!==''&&value!==null&&value!==undefined?`${Number(value).toLocaleString('ko-KR')}원`:'금액 미입력';
         const formatDueDay=value=>value?`매월 ${value}일`:'납부일 미지정';
         const normalizeItem=(item,fallbackId,type)=>({id:item.id||fallbackId,name:item.name||'항목',desc:item.desc||'설명 없음',amount:item.amount??'',dueDay:item.dueDay??'',type:type||item.type||'recurring'});
+        const mergeByPeriod=(target,key,value,mergeValue=(previous,next)=>next)=>{target[key]=Object.prototype.hasOwnProperty.call(target,key)?mergeValue(target[key],value):value};
+        const normalizePeriodMap=(stored,normalizeValue=value=>value,mergeValue=(previous,next)=>next)=>{
+            const migrated={};
+            if(!stored||typeof stored!=='object')return migrated;
+            Object.entries(stored).forEach(([key,value])=>{mergeByPeriod(migrated,periodFromLegacyKey(key),normalizeValue(value,key),mergeValue)});
+            return migrated;
+        };
+        const mergeItemLists=(previous,next)=>{
+            const merged=[...(previous||[])];
+            (next||[]).forEach(item=>{const index=merged.findIndex(entry=>entry.id===item.id);if(index>=0){merged[index]={...merged[index],...item}}else{merged.push(item)}});
+            return merged;
+        };
+        const normalizeMemoMap=stored=>{
+            const migrated={};
+            if(!stored||typeof stored!=='object')return migrated;
+            Object.entries(stored).forEach(([key,value])=>{
+                const separator=String(key).indexOf(':');
+                if(separator<0){migrated[key]=value;return}
+                const period=periodFromLegacyKey(String(key).slice(0,separator));
+                const id=String(key).slice(separator+1);
+                migrated[`${period}:${id}`]=value;
+            });
+            return migrated;
+        };
+        const validAmount=value=>value===''||Number(value)>=0;
+        const validDueDay=value=>value===''||(Number.isInteger(Number(value))&&Number(value)>=1&&Number(value)<=31);
+        const cloneData=value=>structuredClone(value);
+        const snapshotData=()=>({recurring:cloneData(state.recurring),monthlyItems:cloneData(state.monthlyItems),checks:cloneData(state.checks),monthMemos:cloneData(state.monthMemos),monthOverrides:cloneData(state.monthOverrides)});
+        const restoreData=snapshot=>{state.recurring=snapshot.recurring;state.monthlyItems=snapshot.monthlyItems;state.checks=snapshot.checks;state.monthMemos=snapshot.monthMemos;state.monthOverrides=snapshot.monthOverrides};
 
         function migrateRecurring(stored){
             if(Array.isArray(stored)&&stored.length)return stored.map((item,index)=>normalizeItem(item,`fixed_${index+1}`,'recurring'));
@@ -268,8 +310,7 @@
 
         function migrateMonthly(stored){
             if(stored&&typeof stored==='object'){
-                Object.keys(stored).forEach(month=>{stored[month]=(stored[month]||[]).map((item,index)=>normalizeItem(item,`monthly_${month}_${index+1}`,'monthly'))});
-                return stored;
+                return normalizePeriodMap(stored,(items,key)=>(items||[]).map((item,index)=>normalizeItem(item,`monthly_${key}_${index+1}`,'monthly')),mergeItemLists);
             }
             return {};
         }
@@ -283,19 +324,19 @@
             if(Array.isArray(sample)){
                 const migrated={};
                 Object.entries(stored).forEach(([month,items])=>{
-                    migrated[month]={};
+                    migrated[periodFromLegacyKey(month)]={};
                     items.forEach((item,index)=>{
                         const fallbackId=state.recurring[index]?.id;
                         const itemId=item?.id&&item.id.startsWith('m')?`fixed_${index+1}`:(item?.id||fallbackId);
-                        if(itemId)migrated[month][itemId]=Boolean(item?.paid);
+                        if(itemId)migrated[periodFromLegacyKey(month)][itemId]=Boolean(item?.paid);
                     });
                 });
                 return migrated;
             }
-            return stored;
+            return normalizePeriodMap(stored,value=>value&&typeof value==='object'?value:{},(previous,next)=>({...previous,...next}));
         }
 
-        function persist(){write(KEYS.presets,state.recurring);write(KEYS.monthly,state.monthlyItems);write(KEYS.state,state.checks);write(KEYS.monthMemos,state.monthMemos);write(KEYS.monthOverrides,state.monthOverrides)}
+        function persist(){const ok=[write(KEYS.presets,state.recurring),write(KEYS.monthly,state.monthlyItems),write(KEYS.state,state.checks),write(KEYS.monthMemos,state.monthMemos),write(KEYS.monthOverrides,state.monthOverrides)].every(Boolean);if(ok)setStorageStatus('');return ok}
         function openManage(){refs.manageModal.classList.add('open');refs.manageModal.setAttribute('aria-hidden','false')}
         function closeManage(){refs.manageModal.classList.remove('open');refs.manageModal.setAttribute('aria-hidden','true')}
         function allItemsForMonth(month){
@@ -305,8 +346,8 @@
         }
         function viewItemsForMonth(month){
             const current=checkState(month);
-            const prev=month>1?checkState(month-1):null;
-            return allItemsForMonth(month).map(item=>({...item,paid:Boolean(current[item.id]),carryover:prev?prev[item.id]===false:false,memo:state.monthMemos[monthMemoKey(month,item.id)]||''}));
+            const prev=state.checks[previousPeriodKey(month)]||null;
+            return allItemsForMonth(month).map(item=>({...item,paid:Boolean(current[item.id]),carryover:item.type==='recurring'&&prev?prev[item.id]!==true:false,memo:state.monthMemos[monthMemoKey(month,item.id)]||''}));
         }
         function renderMonthTabs(){refs.monthSelector.innerHTML=Array.from({length:12},(_,i)=>{const month=i+1;return `<button type="button" class="month-tab${month===state.month?' active':''}" data-month="${month}">${month}월</button>`}).join('')}
         function rowMeta(item){return `<div class="row-sub"><span>${formatAmount(item.amount)}</span><span>${formatDueDay(item.dueDay)}</span></div>`}
@@ -323,7 +364,7 @@
         }
         function renderItems(){
             const items=viewItemsForMonth(state.month);
-            refs.monthTitle.innerHTML=`<span>${state.month}월</span> 고정지출 체크리스트`;
+            refs.monthTitle.innerHTML=`<span>${state.year}년 ${state.month}월</span> 고정지출 체크리스트`;
             if(!items.length){refs.items.innerHTML='<div class="empty-state">해당 월의 항목이 없습니다.</div>';refs.countTotal.textContent='0';refs.countPaid.textContent='0';refs.countPending.textContent='0';return}
             refs.items.innerHTML=items.map(item=>{const memo=item.memo.trim();return `<div class="item${item.paid?' paid':''}"><button type="button" class="check" data-action="toggle" data-id="${item.id}" aria-label="${esc(item.name)} 상태 변경">${icon('check')}</button><div class="item-main" data-action="toggle" data-id="${item.id}"><div class="item-header"><span class="item-name">${esc(item.name)}</span><span class="badge ${item.type==='recurring'?'recurring':'monthly'}">${item.type==='recurring'?'상시':'이번 달만'}</span><span class="badge ${item.paid?'paid':'due'}">${item.paid?'처리완료':'미처리'}</span></div><div class="item-desc">${esc(item.desc||'설명 없음')}</div><div class="item-sub"><span>${formatAmount(item.amount)}</span><span>${formatDueDay(item.dueDay)}</span></div>${item.carryover&&!item.paid?'<div class="warning-note">지난달 처리되지않음</div>':''}${memo?`<div class="memo-preview">${icon('memo')}<span>${esc(memo.length>42?`${memo.slice(0,42)}...`:memo)}</span></div>`:''}</div><div class="actions"><button type="button" class="icon-btn memo${memo?' has-data':''}" data-action="memo" data-id="${item.id}" title="${memo?'메모 수정':'메모 추가'}">${icon('memo')}</button><button type="button" class="icon-btn edit" data-action="edit" data-scope="${item.type}" data-context="runtime" data-id="${item.id}" title="수정">${icon('edit')}</button></div></div>`}).join('');
             const paid=items.filter(item=>item.paid).length;
@@ -335,16 +376,28 @@
         function addRecurringItem(){
             const name=refs.recurringName.value.trim();
             if(!name){refs.recurringName.focus();return}
-            state.recurring.push({id:makeId('recurring'),name,desc:refs.recurringDesc.value.trim()||'설명 없음',amount:refs.recurringAmount.value.trim(),dueDay:refs.recurringDueDay.value.trim(),type:'recurring'});
-            persist();refs.recurringForm.reset();refs.recurringName.focus();render();
+            const amount=refs.recurringAmount.value.trim();
+            const dueDay=refs.recurringDueDay.value.trim();
+            if(!validAmount(amount)){refs.recurringAmount.focus();return}
+            if(!validDueDay(dueDay)){refs.recurringDueDay.focus();return}
+            const snapshot=snapshotData();
+            state.recurring.push({id:makeId('recurring'),name,desc:refs.recurringDesc.value.trim()||'설명 없음',amount,dueDay,type:'recurring'});
+            if(!persist()){restoreData(snapshot);render();return}
+            refs.recurringForm.reset();refs.recurringName.focus();render();
         }
         function addMonthlyItem(){
             const name=refs.monthlyName.value.trim();
             if(!name){refs.monthlyName.focus();return}
-            monthItems(state.month).push({id:makeId(`monthly_${state.month}`),name,desc:refs.monthlyDesc.value.trim()||'설명 없음',amount:refs.monthlyAmount.value.trim(),dueDay:refs.monthlyDueDay.value.trim(),type:'monthly'});
-            persist();refs.monthlyForm.reset();refs.monthlyName.focus();render();
+            const amount=refs.monthlyAmount.value.trim();
+            const dueDay=refs.monthlyDueDay.value.trim();
+            if(!validAmount(amount)){refs.monthlyAmount.focus();return}
+            if(!validDueDay(dueDay)){refs.monthlyDueDay.focus();return}
+            const snapshot=snapshotData();
+            monthItems(state.month).push({id:makeId(`monthly_${periodKey(state.month)}`),name,desc:refs.monthlyDesc.value.trim()||'설명 없음',amount,dueDay,type:'monthly'});
+            if(!persist()){restoreData(snapshot);render();return}
+            refs.monthlyForm.reset();refs.monthlyName.focus();render();
         }
-        function toggleItem(id){const current=checkState(state.month);current[id]=!current[id];write(KEYS.state,state.checks);renderItems()}
+        function toggleItem(id){const current=checkState(state.month);const previous=current[id];current[id]=!current[id];if(!saveValue(KEYS.state,state.checks)){if(previous===undefined){delete current[id]}else{current[id]=previous}}renderItems()}
         function findItem(scope,id,context='manage'){
             if(scope==='monthly')return monthItems(state.month).find(item=>item.id===id);
             if(context==='runtime')return allItemsForMonth(state.month).find(item=>item.id===id);
@@ -358,8 +411,8 @@
             refs.memoModal.classList.add('open');refs.memoModal.setAttribute('aria-hidden','false');setTimeout(()=>refs.memoText.focus(),0);
         }
         function closeMemo(){state.activeMemoId=null;refs.memoText.value='';refs.memoModal.classList.remove('open');refs.memoModal.setAttribute('aria-hidden','true')}
-        function saveMemo(){if(!state.activeMemoId)return;const key=monthMemoKey(state.month,state.activeMemoId);const text=refs.memoText.value.trim();if(text){state.monthMemos[key]=text}else{delete state.monthMemos[key]}write(KEYS.monthMemos,state.monthMemos);closeMemo();renderItems()}
-        function deleteMemo(){if(!state.activeMemoId)return;delete state.monthMemos[monthMemoKey(state.month,state.activeMemoId)];write(KEYS.monthMemos,state.monthMemos);closeMemo();renderItems()}
+        function saveMemo(){if(!state.activeMemoId)return;const key=monthMemoKey(state.month,state.activeMemoId);const previous=state.monthMemos[key];const text=refs.memoText.value.trim();if(text){state.monthMemos[key]=text}else{delete state.monthMemos[key]}if(!saveValue(KEYS.monthMemos,state.monthMemos)){if(previous===undefined){delete state.monthMemos[key]}else{state.monthMemos[key]=previous}renderItems();return}closeMemo();renderItems()}
+        function deleteMemo(){if(!state.activeMemoId)return;const key=monthMemoKey(state.month,state.activeMemoId);const previous=state.monthMemos[key];delete state.monthMemos[key];if(!saveValue(KEYS.monthMemos,state.monthMemos)){if(previous!==undefined)state.monthMemos[key]=previous;renderItems();return}closeMemo();renderItems()}
         function openEdit(scope,id,context='manage'){
             const item=findItem(scope,id,context);
             if(!item)return;
@@ -371,7 +424,12 @@
             if(!state.activeEdit)return;
             const nextName=refs.editName.value.trim();
             if(!nextName){refs.editName.focus();return}
-            const nextData={name:nextName,amount:refs.editAmount.value.trim(),dueDay:refs.editDueDay.value.trim(),desc:refs.editDesc.value.trim()||'설명 없음'};
+            const amount=refs.editAmount.value.trim();
+            const dueDay=refs.editDueDay.value.trim();
+            if(!validAmount(amount)){refs.editAmount.focus();return}
+            if(!validDueDay(dueDay)){refs.editDueDay.focus();return}
+            const nextData={name:nextName,amount,dueDay,desc:refs.editDesc.value.trim()||'설명 없음'};
+            const snapshot=snapshotData();
             if(state.activeEdit.scope==='monthly'){
                 const item=findItem('monthly',state.activeEdit.id,'manage');
                 if(!item)return;
@@ -383,15 +441,21 @@
                 if(!item)return;
                 Object.assign(item,nextData);
             }
-            persist();closeEdit();render();
+            if(!persist()){restoreData(snapshot);render();return}
+            closeEdit();render();
         }
         function deleteItem(scope,id){
-            if(scope==='monthly'){state.monthlyItems[state.month]=monthItems(state.month).filter(item=>item.id!==id)}
+            const item=findItem(scope,id,scope==='monthly'?'manage':'runtime');
+            const name=item?.name||'선택한 항목';
+            if(!confirm(`${name}을(를) 삭제할까요?\n관련 체크 상태, 월별 수정 내용, 메모도 함께 삭제됩니다.`))return;
+            const snapshot=snapshotData();
+            if(scope==='monthly'){state.monthlyItems[periodKey(state.month)]=monthItems(state.month).filter(item=>item.id!==id)}
             else{state.recurring=state.recurring.filter(item=>item.id!==id)}
             Object.values(state.checks).forEach(month=>{delete month[id]});
             Object.values(state.monthOverrides).forEach(month=>{delete month[id]});
             Object.keys(state.monthMemos).forEach(key=>{if(key.endsWith(`:${id}`))delete state.monthMemos[key]});
-            persist();render();
+            if(!persist())restoreData(snapshot);
+            render();
         }
         function handleAction(event){
             const target=event.target.closest('[data-action]');
@@ -422,8 +486,8 @@
         state.recurring=migrateRecurring(read(KEYS.presets,read('meml_recurring_items',null)));
         state.monthlyItems=migrateMonthly(read(KEYS.monthly,null));
         state.checks=migrateChecks(read(KEYS.state,null));
-        state.monthMemos=read(KEYS.monthMemos,{})||{};
-        state.monthOverrides=read(KEYS.monthOverrides,{})||{};
+        state.monthMemos=normalizeMemoMap(read(KEYS.monthMemos,{})||{});
+        state.monthOverrides=normalizePeriodMap(read(KEYS.monthOverrides,{})||{},value=>value&&typeof value==='object'?value:{},(previous,next)=>({...previous,...next}));
         persist();
         render();
     </script>
