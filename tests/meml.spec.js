@@ -162,6 +162,27 @@ test('merges legacy and period keys without dropping items on repeated loads', a
   await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem('meml_month_specific_items'))[key].length, expectedPeriod)).toBe(2);
 });
 
+test('preserves completed checks when legacy and period check states conflict', async ({ page }) => {
+  await page.addInitScript(period => {
+    localStorage.clear();
+    localStorage.setItem('meml_monthly_state', JSON.stringify({
+      4: { fixed_1: true, fixed_2: 'false' },
+      [period]: { fixed_1: false, fixed_2: false, fixed_3: 'true' }
+    }));
+  }, expectedPeriod);
+
+  await page.goto(fileUrl);
+  await expect(page.locator('#countPaid')).toHaveText('2');
+
+  const storedState = await page.evaluate(() => JSON.parse(localStorage.getItem('meml_monthly_state')));
+  expect(storedState[expectedPeriod].fixed_1).toBe(true);
+  expect(storedState[expectedPeriod].fixed_2).toBe(false);
+  expect(storedState[expectedPeriod].fixed_3).toBe(true);
+
+  await page.reload();
+  await expect(page.locator('#countPaid')).toHaveText('2');
+});
+
 test('does not overwrite unreadable stored data', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.clear();

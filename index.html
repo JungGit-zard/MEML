@@ -285,6 +285,17 @@
             (next||[]).forEach(item=>{const index=merged.findIndex(entry=>entry.id===item.id);if(index>=0){merged[index]={...merged[index],...item}}else{merged.push(item)}});
             return merged;
         };
+        const normalizeCheckState=value=>{
+            const checks={};
+            if(!value||typeof value!=='object')return checks;
+            Object.entries(value).forEach(([id,checked])=>{checks[id]=checked===true||checked==='true'});
+            return checks;
+        };
+        const mergeCheckStates=(previous,next)=>{
+            const merged={...previous};
+            Object.entries(next||{}).forEach(([id,checked])=>{merged[id]=Boolean(merged[id])||checked===true});
+            return merged;
+        };
         const normalizeMemoMap=stored=>{
             const migrated={};
             if(!stored||typeof stored!=='object')return migrated;
@@ -335,7 +346,7 @@
                 });
                 return migrated;
             }
-            return normalizePeriodMap(stored,value=>value&&typeof value==='object'?value:{},(previous,next)=>({...previous,...next}));
+            return normalizePeriodMap(stored,normalizeCheckState,mergeCheckStates);
         }
 
         function persist(){const ok=[write(KEYS.presets,state.recurring),write(KEYS.monthly,state.monthlyItems),write(KEYS.state,state.checks),write(KEYS.monthMemos,state.monthMemos),write(KEYS.monthOverrides,state.monthOverrides),write(KEYS.itemOrder,state.itemOrder)].every(Boolean);if(ok)setStorageStatus('');return ok}
